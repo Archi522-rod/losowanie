@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Maszyna losująca Lotto</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#eef1fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d1226" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Maszyna Lotto">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;800&display=swap">
+<style>
+:root{--bg:#eef1fa;--ink:#141a33;--panel:#fff;--line:#cfd6ec;--accent:#2b3fd6;--onaccent:#fff;--muted:#586084;--slot:#e3e8f7;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1226;--ink:#eef0fa;--panel:#161d3a;--line:#2a3360;--accent:#ffcf3f;--onaccent:#141a33;--muted:#9aa3c8;--slot:#0d1226}}
+:root[data-theme="dark"]{--bg:#0d1226;--ink:#eef0fa;--panel:#161d3a;--line:#2a3360;--accent:#ffcf3f;--onaccent:#141a33;--muted:#9aa3c8;--slot:#0d1226}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;min-height:100%}
+main{max-width:440px;margin:0 auto;padding:20px 16px 32px;text-align:center}
+h1{font-size:1.7rem;font-weight:800;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 16px;font-size:.95rem}
+.stage{background:var(--panel);border:2px solid var(--line);border-radius:50%;width:fit-content;margin:0 auto;padding:6px;max-width:100%}
+canvas{display:block;border-radius:50%}
+.tray{display:flex;gap:6px;justify-content:center;margin:20px 0 6px}
+.slot{width:clamp(32px,10.5vw,46px);aspect-ratio:1;border-radius:50%;background:var(--slot);border:2px dashed var(--line);display:grid;place-items:center;font-weight:800;font-size:clamp(.85rem,3.8vw,1.2rem)}
+.slot.in{border:0;animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{from{transform:scale(.2) translateY(-60px);opacity:0}to{transform:none;opacity:1}}
+.slot.gap{margin-left:12px}
+.tabs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:0 0 10px}
+.tabs button{background:transparent;color:var(--ink);border-color:var(--line);padding:8px 14px;font-size:.95rem}
+.tabs button[aria-pressed="true"]{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
+.cmp{margin:6px 0 0;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--panel);text-align:left;font-size:.95rem}
+.cmp p{margin:8px 0 0}
+.cl{color:var(--muted);font-size:.85rem;margin-bottom:8px}
+.cr{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.cr i{width:8px}
+.mb{display:inline-grid;place-items:center;width:34px;aspect-ratio:1;border-radius:50%;font-weight:800;font-size:.9rem;opacity:.55}
+.mb.hit{opacity:1;outline:3px solid var(--ink);outline-offset:1px}
+.ed{margin-top:10px;text-align:left;font-size:.9rem;color:var(--muted)}
+.ed label{display:block;margin:6px 0}
+.ed input{font:inherit;width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.ed button{padding:8px 18px;font-size:.95rem;margin-top:4px}
+.btns{display:flex;gap:10px;justify-content:center;margin:18px 0 8px}
+button{font:inherit;font-weight:800;font-size:1.05rem;border-radius:999px;padding:12px 28px;cursor:pointer;border:2px solid var(--accent);background:var(--accent);color:var(--onaccent)}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+button:disabled{opacity:.5;cursor:default}
+.res{min-height:1.5em;font-weight:500;margin:10px 0}
+.hist{margin:18px 0 0;padding:0;list-style:none;color:var(--muted);font-size:.95rem;text-align:left;border-top:1px solid var(--line)}
+.hist li{padding:8px 2px;border-bottom:1px solid var(--line)}
+.note{color:var(--muted);font-size:.8rem;margin-top:18px}
+@media (prefers-reduced-motion:reduce){.slot.in{animation:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Maszyna losująca</h1>
+  <div class="tabs" id="tabs"><button data-g="lotto" aria-pressed="true">Lotto</button><button data-g="mini" aria-pressed="false">Mini Lotto</button><button data-g="euro" aria-pressed="false">Eurojackpot</button></div>
+  <p class="sub" id="sub"></p>
+  <div class="stage"><canvas id="cv" aria-label="Maszyna z kulami"></canvas></div>
+  <div class="tray" id="tray" aria-live="polite"></div>
+  <div class="btns"><button id="go">Losuj</button></div>
+  <div class="res" id="res"></div>
+  <div class="cmp" id="cmp"></div>
+  <details class="ed"><summary>Zmień oficjalne wyniki</summary>
+    <label>Data losowania<input id="ed" inputmode="numeric"></label>
+    <label>Liczby (po przecinku)<input id="em" inputmode="numeric"></label>
+    <label id="eel">Euroliczby<input id="ee" inputmode="numeric"></label>
+    <button id="es" type="button">Zapisz</button>
+  </details>
+  <ul class="hist" id="hist"></ul>
+  <p class="note">Symulacja do zabawy. Wyniki oficjalne to zapis z podanej daty, strona sama ich nie odświeża.</p>
+</main>
+<script>
+const cv=document.getElementById('cv'),cx=cv.getContext('2d'),tray=document.getElementById('tray'),
+go=document.getElementById('go'),res=document.getElementById('res'),hist=document.getElementById('hist');
+const COL=[['#f5c518','#141a33'],['#2f6fe0','#fff'],['#d8343a','#fff'],['#22a35a','#fff'],['#8a45c8','#fff']];
+const colOf=(n,ex)=>ex?['#f28c1e','#141a33']:COL[Math.floor((n-1)/10)];
+const GAMES={lotto:{name:'Lotto',sub:'6 liczb z 49',pick:6,max:49,ex:0,exMax:0},
+mini:{name:'Mini Lotto',sub:'5 liczb z 42',pick:5,max:42,ex:0,exMax:0},
+euro:{name:'Eurojackpot',sub:'5 liczb z 50 i 2 Euroliczby z 12',pick:5,max:50,ex:2,exMax:12}};
+let game='lotto',extras=[];
+const OFF={lotto:{d:'22.09.2026',m:[1,18,37,38,45,46],e:[]},mini:{d:'23.09.2026',m:[8,22,26,40,42],e:[]},euro:{d:'22.09.2026',m:[17,23,33,46,47],e:[4,5]}};
+try{const c=JSON.parse(localStorage.getItem('off')||'null');if(c)for(const k in OFF)if(c[k])OFF[k]=c[k]}catch(e){}
+const cmp=document.getElementById('cmp');
+const rnd=()=>crypto.getRandomValues(new Uint32Array(1))[0]/4294967296;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let S=320,R=0,r=0,balls=[],stir=false,busy=false,drawn=[];
+
+function fit(){
+  const w=Math.max(220,Math.min(360,document.querySelector('main').clientWidth-40));
+  const d=window.devicePixelRatio||1;
+  cv.style.width=cv.style.height=w+'px';cv.width=cv.height=Math.round(w*d);
+  cx.setTransform(d,0,0,d,0,0);S=w;R=S/2-2;r=S*0.043;
+  balls.forEach(place);
+}
+function place(b){
+  const a=rnd()*Math.PI*2,d=rnd()*(R-r*2);
+  b.x=S/2+Math.cos(a)*d;b.y=S/2+Math.abs(Math.sin(a))*d*0.8;b.vx=(rnd()-.5)*4;b.vy=(rnd()-.5)*4;
+}
+function rebuild(max,ex){
+  balls=[];for(let n=1;n<=max;n++){const b={n,ex};place(b);balls.push(b)}
+}
+function step(){
+  const c=S/2;
+  for(const b of balls){
+    b.vy+=0.16;
+    if(stir){b.vx+=(rnd()-.5)*1.6;b.vy+=(rnd()-.5)*1.6-0.42;const dx=b.x-c;b.vx+=-dx*0.004}
+    const sp=Math.hypot(b.vx,b.vy),mx=stir?9:7;
+    if(sp>mx){b.vx*=mx/sp;b.vy*=mx/sp}
+    b.vx*=0.995;b.vy*=0.995;b.x+=b.vx;b.y+=b.vy;
+    const dx=b.x-c,dy=b.y-c,d=Math.hypot(dx,dy);
+    if(d>R-r){
+      const nx=dx/d,ny=dy/d;b.x=c+nx*(R-r);b.y=c+ny*(R-r);
+      const dot=b.vx*nx+b.vy*ny;
+      if(dot>0){b.vx-=1.6*dot*nx;b.vy-=1.6*dot*ny}
+    }
+  }
+  for(let i=0;i<balls.length;i++)for(let j=i+1;j<balls.length;j++){
+    const a=balls[i],b=balls[j],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
+    if(d>0&&d<2*r){
+      const nx=dx/d,ny=dy/d,o=(2*r-d)/2;
+      a.x-=nx*o;a.y-=ny*o;b.x+=nx*o;b.y+=ny*o;
+      const rel=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;
+      if(rel>0){a.vx-=rel*nx*.9;a.vy-=rel*ny*.9;b.vx+=rel*nx*.9;b.vy+=rel*ny*.9}
+    }
+  }
+}
+function paint(){
+  cx.clearRect(0,0,S,S);
+  cx.font='800 '+Math.round(r*1.05)+'px "Bricolage Grotesque",system-ui,sans-serif';
+  cx.textAlign='center';cx.textBaseline='middle';
+  for(const b of balls){
+    const [bg,fg]=colOf(b.n,b.ex);
+    cx.beginPath();cx.arc(b.x,b.y,r,0,7);cx.fillStyle=bg;cx.fill();
+    cx.beginPath();cx.arc(b.x-r*.3,b.y-r*.3,r*.35,0,7);cx.fillStyle='rgba(255,255,255,.28)';cx.fill();
+    cx.fillStyle=fg;cx.fillText(b.n,b.x,b.y+1);
+  }
+}
+function loop(){step();paint();requestAnimationFrame(loop)}
+
+const tabs=document.getElementById('tabs');
+function lock(v){tabs.querySelectorAll('button').forEach(t=>t.disabled=v)}
+const chip=(n,ex,hit)=>{const [bg,fg]=colOf(n,ex);return '<span class="mb'+(hit?' hit':'')+'" style="background:'+bg+';color:'+fg+'">'+n+'</span>'};
+function showCmp(done){
+  const o=OFF[game];
+  let h='<div class="cl">Ostatnie oficjalne losowanie ('+o.d+')</div><div class="cr">'+o.m.map(n=>chip(n,0,done&&drawn.includes(n))).join('')+(o.e.length?'<i></i>'+o.e.map(n=>chip(n,1,done&&extras.includes(n))).join(''):'')+'</div>';
+  if(done){
+    const hm=drawn.filter(n=>o.m.includes(n)),he=extras.filter(n=>o.e.includes(n));
+    const only=drawn.filter(n=>!o.m.includes(n)),miss=o.m.filter(n=>!drawn.includes(n));
+    h+='<p>Trafienia: <b>'+hm.length+' z '+o.m.length+'</b>'+(o.e.length?' i <b>'+he.length+' z '+o.e.length+'</b> Euroliczb':'')+(hm.length?' ('+hm.join(', ')+')':'')+'.</p>';
+    h+='<p>Różnica: u Ciebie padły '+(only.join(', ')||'same trafione'
+)+', a w oficjalnym losowaniu '+(miss.join(', ')||'same trafione')+'.</p>';
+  }
+  cmp.innerHTML=h;
+}
+function fillEdit(){
+  const o=OFF[game];
+  document.getElementById('ed').value=o.d;document.getElementById('em').value=o.m.join(', ');
+  document.getElementById('ee').value=o.e.join(', ');
+  document.getElementById('eel').style.display=GAMES[game].ex?'block':'none';
+}
+const parse=(t,n,max)=>{const a=[...new Set(t.split(/[^0-9]+/).filter(Boolean).map(Number))];return a.length===n&&a.every(x=>x>=1&&x<=max)?a.sort((x,y)=>x-y):null};
+document.getElementById('es').addEventListener('click',()=>{
+  if(busy)return;const g=GAMES[game];
+  const m=parse(document.getElementById('em').value,g.pick,g.max),e=g.ex?parse(document.getElementById('ee').value,g.ex,g.exMax):[];
+  if(!m||!e){res.textContent='Podaj '+g.pick+' różnych liczb z 1–'+g.max+(g.ex?' i '+g.ex+' Euroliczby z 1–'+g.exMax:'')+'.';return}
+  OFF[game]={d:document.getElementById('ed').value.trim()||'brak daty',m,e};
+  try{localStorage.setItem('off',JSON.stringify(OFF))}catch(x){}
+  res.textContent='Zapisano oficjalne wyniki.';fillEdit();showCmp(false);
+});
+function resetTray(){
+  const g=GAMES[game];tray.innerHTML='';
+  for(let i=0;i<g.pick+g.ex;i++){const s=document.createElement('div');s.className='slot'+(g.ex&&i===g.pick?' gap':'');tray.appendChild(s)}
+  res.textContent='';drawn=[];extras=[];showCmp(false);
+}
+function pickGame(k){
+  game=k;const g=GAMES[k];
+  tabs.querySelectorAll('button').forEach(t=>t.setAttribute('aria-pressed',String(t.dataset.g===k)));
+  document.getElementById('sub').textContent='Losowanie: '+g.sub;
+  rebuild(g.max,0);resetTray();fillEdit();go.textContent='Losuj';
+}
+async function pull(idx,ex){
+  const b=balls.splice(Math.floor(rnd()*balls.length),1)[0];
+  const s=tray.children[idx],[bg,fg]=colOf(b.n,ex);
+  s.textContent=b.n;s.style.background=bg;s.style.color=fg;s.className+=' in';
+  (ex?extras:drawn).push(b.n);
+  await sleep(1400);
+}
+async function draw(){
+  if(busy)return;busy=true;go.disabled=true;lock(true);
+  const g=GAMES[game];
+  rebuild(g.max,0);resetTray();stir=true;res.textContent='Mieszam kule…';
+  await sleep(2200);
+  for(let k=0;k<g.pick;k++){res.textContent='Wylosowano '+(k+1)+' z '+g.pick;await pull(k,0)}
+  if(g.ex){
+    res.textContent='Mieszam Euroliczby…';
+    rebuild(g.exMax,1);await sleep(1800);
+    for(let k=0;k<g.ex;k++){res.textContent='Euroliczba '+(k+1)+' z '+g.ex;await pull(g.pick+k,1)}
+  }
+  stir=false;
+  const srt=a=>[...a].sort((x,y)=>x-y).join(', ');
+  const line=srt(drawn)+(extras.length?'  +  '+srt(extras):'');
+  res.textContent='Po kolei rosnąco: '+line;
+  const li=document.createElement('li');li.textContent=g.name+': '+line;hist.prepend(li);
+  while(hist.children.length>6)hist.lastChild.remove();
+  showCmp(true);go.textContent='Losuj ponownie';go.disabled=false;lock(false);busy=false;
+}
+tabs.addEventListener('click',e=>{const t=e.target.closest('button');if(t&&!busy)pickGame(t.dataset.g)});
+go.addEventListener('click',draw);
+pickGame('lotto');fit();
+window.addEventListener('resize',fit);
+loop();
+</script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
+</script>
+</body>
+</html>
